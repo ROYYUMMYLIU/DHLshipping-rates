@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運費查詢系統</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-container input, .form-container button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-container button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .form-container button:hover {
+            background-color: #218838;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>運費查詢</h2>
+    <p>請輸入包裹的重量 (公斤) 來查詢運費：</p>
+    <input type="number" id="weightInput" placeholder="輸入公斤數" min="0.5" step="0.5">
+    <button onclick="getShippingRate()">查詢運費</button>
+    <div class="result" id="result"></div>
+</div>
+
+<script>
+    let shippingData = {};
+
+    const shippingUrl = "https://raw.githubusercontent.com/ROYYUMMYLIU/DHLshipping-rates/refs/heads/main/DHLshipping_rates.json";
+
+    fetch(shippingUrl)
+        .then(response => response.json())
+        .then(data => {
+            shippingData = data;
+        })
+        .catch(error => {
+            console.error("無法載入運費數據:", error);
+        });
+
+    function roundUp(weight) {
+        return Math.ceil(weight * 2) / 2;
+    }
+
+    function getShippingRate() {
+        const weight = parseFloat(document.getElementById("weightInput").value.trim());
+
+        if (!weight || weight <= 0) {
+            document.getElementById("result").innerHTML = "<p class='error'>請輸入有效的公斤數。</p>";
+            return;
+        }
+
+        const finalWeight = roundUp(weight);
+
+        if (shippingData[finalWeight]) {
+            document.getElementById("result").innerHTML = `
+                <p>重量: ${finalWeight} 公斤</p>
+                <p>運費 (TWD): ${shippingData[finalWeight].TWD.toFixed(2)}</p>
+                <p>運費 (AUD): ${shippingData[finalWeight].AUD.toFixed(2)}</p>
+            `;
+        } else {
+            document.getElementById("result").innerHTML = "<p class='error'>超出計算範圍，請聯繫客服。</p>";
+        }
+    }
+</script>
+
+</body>
+</html>
