@@ -39,9 +39,14 @@
             margin-top: 20px;
             font-size: 18px;
             color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f1f1f1;
+            display: none;
         }
         .error {
             color: red;
+            font-weight: bold;
         }
         .info {
             font-size: 14px;
@@ -133,46 +138,41 @@
         const weight = parseFloat(document.getElementById("weight").value) || 0;
         const zipcode = document.getElementById("zipcode").value.trim();
 
-        // 檢查是否輸入郵遞區號
         if (!zipcode) {
             document.getElementById("result").innerHTML = "<p class='error'>⚠️ 請輸入郵遞區號！</p>";
+            document.getElementById("result").style.display = "block";
             return;
         }
 
-        // 計算材積重量
         let volumeWeight = (length * width * height) / 5000;
         let finalWeight = roundUp(Math.max(volumeWeight, weight));
 
         if (finalWeight > 30) {
             document.getElementById("result").innerHTML = "<p class='error'>⚠️ 超出 30 公斤，請聯繫客服！</p>";
+            document.getElementById("result").style.display = "block";
             return;
         }
 
         let dhlCost = shippingData[finalWeight] ? shippingData[finalWeight].AUD : 0;
         let australiaCost = 0;
 
-        // 查詢澳洲本地配送費
         for (let region of australiaShippingData) {
             let postalRanges = region["地區"].split(",").map(r => r.trim());
             for (let range of postalRanges) {
-                if (range.includes("-")) {
-                    let [start, end] = range.split("-").map(Number);
-                    if (zipcode >= start && zipcode <= end) {
-                        australiaCost = region["運費_AUD"];
-                        break;
-                    }
-                } else if (parseInt(range) === parseInt(zipcode)) {
+                let [start, end] = range.includes("-") ? range.split("-").map(Number) : [parseInt(range), parseInt(range)];
+                if (zipcode >= start && zipcode <= end) {
                     australiaCost = region["運費_AUD"];
                     break;
                 }
             }
         }
 
-        let totalCost = dhlCost + australiaCost;
-
         document.getElementById("result").innerHTML = `
-            <p>💰 **總運費 (AUD)：${totalCost.toFixed(2)} 元**</p>
+            <p>💰 DHL 運費 (AUD)：${dhlCost.toFixed(2)}</p>
+            <p>🚚 澳洲配送費 (AUD)：${australiaCost.toFixed(2)}</p>
+            <p>🔹 <strong>總費用 (AUD)：${(dhlCost + australiaCost).toFixed(2)}</strong></p>
         `;
+        document.getElementById("result").style.display = "block";
     }
 </script>
 
