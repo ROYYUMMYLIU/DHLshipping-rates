@@ -67,7 +67,7 @@
     <input type="number" id="weight" placeholder="輸入公斤數" min="0.5" step="0.5">
 
     <h3>📍 澳洲境內配送</h3>
-    <p>請輸入您的 **郵遞區號** 來查詢本地配送運費：</p>
+    <p>請輸入您的 **郵遞區號** (必填) 來查詢本地配送運費：</p>
     <input type="text" id="zipcode" placeholder="輸入郵遞區號">
     <button onclick="calculateShipping()">查詢運費</button>
 
@@ -86,6 +86,7 @@
         <h3>🚨 重要提醒：</h3>
         <ul>
             <li>若單一包裹重量或材積換算後超過 30 公斤，請聯繫客服。</li>
+            <li>郵遞區號為必填欄位，請正確輸入。</li>
             <li>僅支持整數或 0.5 公斤單位，其他數字會自動進位。</li>
         </ul>
     </div>
@@ -98,7 +99,7 @@
     // 📌 DHL 運費 JSON 位置
     const shippingUrl = "https://raw.githubusercontent.com/ROYYUMMYLIU/DHLshipping-rates/main/DHLshipping_rates.json";
     
-    // 📌 澳洲境內運費 JSON 位置 (已更新為 AUD)
+    // 📌 澳洲境內運費 JSON 位置 (以 AUD 計價)
     const australiaShippingUrl = "https://raw.githubusercontent.com/ROYYUMMYLIU/DHLshipping-rates/refs/heads/main/australia_shipping_rates_aud.json";
 
     // 讀取 DHL 運費數據
@@ -132,6 +133,12 @@
         const weight = parseFloat(document.getElementById("weight").value) || 0;
         const zipcode = document.getElementById("zipcode").value.trim();
 
+        // 檢查是否輸入郵遞區號
+        if (!zipcode) {
+            document.getElementById("result").innerHTML = "<p class='error'>⚠️ 請輸入郵遞區號！</p>";
+            return;
+        }
+
         // 計算材積重量
         let volumeWeight = (length * width * height) / 5000;
         let finalWeight = roundUp(Math.max(volumeWeight, weight));
@@ -146,19 +153,25 @@
 
         // 查詢澳洲本地配送費
         for (let region of australiaShippingData) {
-            if (region["地區"].includes(zipcode)) {
-                australiaCost = region["運費_AUD"];
-                break;
+            let postalRanges = region["地區"].split(",").map(r => r.trim());
+            for (let range of postalRanges) {
+                if (range.includes("-")) {
+                    let [start, end] = range.split("-").map(Number);
+                    if (zipcode >= start && zipcode <= end) {
+                        australiaCost = region["運費_AUD"];
+                        break;
+                    }
+                } else if (parseInt(range) === parseInt(zipcode)) {
+                    australiaCost = region["運費_AUD"];
+                    break;
+                }
             }
         }
 
         let totalCost = dhlCost + australiaCost;
 
         document.getElementById("result").innerHTML = `
-            <p>✔️ **計費重量：${finalWeight} 公斤**</p>
-            <p>💰 **DHL 運費 (AUD)：${dhlCost.toFixed(2)} 元**</p>
-            <p>🚚 **澳洲本地配送費 (AUD)：${australiaCost.toFixed(2)} 元**</p>
-            <p>🔹 **總費用 (AUD)：${totalCost.toFixed(2)} 元**</p>
+            <p>💰 **總運費 (AUD)：${totalCost.toFixed(2)} 元**</p>
         `;
     }
 </script>
