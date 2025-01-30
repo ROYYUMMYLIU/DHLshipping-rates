@@ -53,7 +53,7 @@
 <body>
 
 <div class="form-container">
-    <h2>📦 澳洲極速空運費( 5個工作日內到府 )</h2>
+    <h2>📦 DHL 運費查詢</h2>
     <p>請輸入包裹尺寸（長×寬×高）及重量（公斤），系統自動計算運費</p>
 
     <label>長 (cm)：</label>
@@ -66,6 +66,9 @@
     <label>重量 (kg)：</label>
     <input type="number" id="weight" placeholder="輸入公斤數" min="0.5" step="0.5">
 
+    <h3>📍 澳洲境內配送</h3>
+    <p>請輸入您的 **郵遞區號** 來查詢本地配送運費：</p>
+    <input type="text" id="zipcode" placeholder="輸入郵遞區號">
     <button onclick="calculateShipping()">查詢運費</button>
 
     <div class="result" id="result"></div>
@@ -74,8 +77,8 @@
     <div class="info">
         <h3>📌 費用計算方式：</h3>
         <ul>
-            <li>台灣到澳洲運費：包裹的重量和材積重量（長×寬×高 ÷ 5000）取較大值。</li>
-            <li>澳洲配送費：根據收件地址計算本地配送費用。</li>
+            <li>台灣到澳洲運費：包裹的重量和材積重量（長×寬×高 ÷ 5000）取較大值，乘以運費。</li>
+            <li>澳洲配送費：根據郵遞區號查詢當地配送費。</li>
             <li>加值服務費（如有）：例如拍照驗貨、加固包裝等額外需求。</li>
         </ul>
         <p><strong>總費用 = 台灣空運費 + 澳洲配送費 + 加值服務費</strong></p>
@@ -84,28 +87,36 @@
         <ul>
             <li>若單一包裹重量或材積換算後超過 30 公斤，請聯繫客服。</li>
             <li>僅支持整數或 0.5 公斤單位，其他數字會自動進位。</li>
-            <li>🚀 全澳極速配送 **5 個工作日內到達**</li>
-            <li>📌 **澳洲 30 公斤內配送費**，請點擊 <a href="https://yummyliu.com/pages/%E6%BE%B3%E6%B4%B2%E6%B4%BE%E4%BB%B6%E8%B2%BB">此處</a></li>
-            <li>📞 **大批運輸需求？聯繫客服獲取最優惠價格！**</li>
-            <li>📞 ※ 若託運商品出口至指定國家並產生關稅，由收件人給付關稅費; 若收件人未能支付，則寄件人收到通知後需無條件同意支付所有費用</li>
         </ul>
     </div>
 </div>
 
 <script>
     let shippingData = {};
+    let australiaShippingData = [];
 
     // 📌 你的 JSON 運費數據網址
-    const shippingUrl = "https://raw.githubusercontent.com/ROYYUMMYLIU/DHLshipping-rates/refs/heads/main/DHLshipping_rates.json";
+    const shippingUrl = "https://raw.githubusercontent.com/ROYYUMMYLIU/DHLshipping-rates/main/DHLshipping_rates.json";
+    const australiaShippingUrl = "https://raw.githubusercontent.com/ROYYUMMYLIU/DHLshipping-rates/refs/heads/main/australia_shipping_rates.json";
 
-    // 讀取 JSON 數據
+    // 讀取 DHL 運費數據
     fetch(shippingUrl)
         .then(response => response.json())
         .then(data => {
             shippingData = data;
         })
         .catch(error => {
-            console.error("❌ 無法載入運費數據:", error);
+            console.error("❌ 無法載入 DHL 運費數據:", error);
+        });
+
+    // 讀取 澳洲配送運費數據
+    fetch(australiaShippingUrl)
+        .then(response => response.json())
+        .then(data => {
+            australiaShippingData = data;
+        })
+        .catch(error => {
+            console.error("❌ 無法載入澳洲運費數據:", error);
         });
 
     function roundUp(weight) {
@@ -117,27 +128,36 @@
         const width = parseFloat(document.getElementById("width").value) || 0;
         const height = parseFloat(document.getElementById("height").value) || 0;
         const weight = parseFloat(document.getElementById("weight").value) || 0;
+        const zipcode = document.getElementById("zipcode").value.trim();
 
-        // 計算材積重量 (長 * 寬 * 高 / 5000)
+        // 計算材積重量
         let volumeWeight = (length * width * height) / 5000;
-
-        // 取較大者作為計費重量
-        const finalWeight = roundUp(Math.max(volumeWeight, weight));
+        let finalWeight = roundUp(Math.max(volumeWeight, weight));
 
         if (finalWeight > 30) {
             document.getElementById("result").innerHTML = "<p class='error'>⚠️ 超出 30 公斤，請聯繫客服！</p>";
             return;
         }
 
-        if (shippingData[finalWeight]) {
-            document.getElementById("result").innerHTML = `
-                <p>✔️ **計費重量：${finalWeight} 公斤**</p>
-                <p>💰 **運費 (TWD)：${shippingData[finalWeight].TWD.toFixed(2)} 元**</p>
-                <p>💵 **運費 (AUD)：${shippingData[finalWeight].AUD.toFixed(2)} 元**</p>
-            `;
-        } else {
-            document.getElementById("result").innerHTML = "<p class='error'>⚠️ 該重量無對應運費，請聯繫客服。</p>";
+        let dhlCost = shippingData[finalWeight] ? shippingData[finalWeight].TWD : 0;
+        let australiaCost = 0;
+
+        // 查詢澳洲本地配送費
+        for (let region of australiaShippingData) {
+            if (region["地區"].includes(zipcode)) {
+                australiaCost = region["運費"];
+                break;
+            }
         }
+
+        let totalCost = dhlCost + australiaCost;
+
+        document.getElementById("result").innerHTML = `
+            <p>✔️ **計費重量：${finalWeight} 公斤**</p>
+            <p>💰 **DHL 運費 (TWD)：${dhlCost.toFixed(2)} 元**</p>
+            <p>🚚 **澳洲本地配送費 (TWD)：${australiaCost.toFixed(2)} 元**</p>
+            <p>🔹 **總費用 (TWD)：${totalCost.toFixed(2)} 元**</p>
+        `;
     }
 </script>
 
